@@ -1,9 +1,11 @@
-package com.example.popularmoviesstage1;
+package com.example.popularmoviesstage2;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -25,6 +27,21 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
     private MoviesAdapter mMoviesAdapter;
     private ProgressBar mLoadingIndicator;
 
+    private String mBaseUrlCurrentlyUsed;
+    private String BASE_URL_CURRENTLY_USED = "BASE_URL_CURRENTLY_USED";
+
+    //function to adjust number of columns for gridlayoutmanager
+    private int numberOfColumns() {
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        // You can change this divider to adjust the size of the item
+        int widthDivider = 400;
+        int width = displayMetrics.widthPixels;
+        int nColumns = width / widthDivider;
+        if (nColumns < 2) return 2; //to keep the grid aspect
+        return nColumns;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,8 +52,10 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
 
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view_movies);
         //Create a GridLayoutManager
+
         GridLayoutManager gridLayoutManager
-                = new GridLayoutManager(this, 3, GridLayoutManager.VERTICAL, false);
+                = new GridLayoutManager(this, numberOfColumns(), GridLayoutManager.VERTICAL, false);
+
         //Set the layoutManager on RecyclerView
         mRecyclerView.setLayoutManager(gridLayoutManager);
 
@@ -45,16 +64,26 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
         //set the adapter to the RecyclerView
         mRecyclerView.setAdapter(mMoviesAdapter);
 
-
-        //get the Movies Data - by default, sorted by popular
+        //load the data according to wether there is a sort type already used
         String mApiKey = getString(R.string.API_KEY);
         String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
-        String mBaseUrl = getString(R.string.POPULAR_MOVIES_BASE_URL);
-        loadMoviesData(mApiKey, mBaseUrl, mApiKeyQueryParam);
+        if(savedInstanceState!=null)
+        {
+            mBaseUrlCurrentlyUsed = savedInstanceState.getString(BASE_URL_CURRENTLY_USED);
+        }
 
+        if (mBaseUrlCurrentlyUsed == null) {
+            //get the Movies Data - by default, sorted by popular
+            //String mBaseUrl = getString(R.string.POPULAR_MOVIES_BASE_URL);
+            String mBaseUrlCurrentlyUsed = getString(R.string.POPULAR_MOVIES_BASE_URL);
+            loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
+        } else{
+            loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
+        }
     }
 
-    //Override MovieAdapterClickHolher onClick method
+
+    //Override MovieAdapterClickHolder onClick method
     @Override
     public void onClick(String mMovieData) {
         //Intent parameters: context, destination class
@@ -100,21 +129,32 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
         if (id == R.id.sort_popular) {
             //get the Movies Data - sorted by popular
             String mApiKey = getString(R.string.API_KEY);
-            String mBaseUrl = getString(R.string.POPULAR_MOVIES_BASE_URL);
+            //String mBaseUrl = getString(R.string.POPULAR_MOVIES_BASE_URL);
+            mBaseUrlCurrentlyUsed = getString(R.string.POPULAR_MOVIES_BASE_URL);
             String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
-            loadMoviesData(mApiKey, mBaseUrl, mApiKeyQueryParam);
+            loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
             return true;
         }
         if (id == R.id.sort_top_rated) {
             //get the Movies Data - sorted by top rated
             String mApiKey = getString(R.string.API_KEY);
-            String mBaseUrl = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
+           // String mBaseUrl = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
+            mBaseUrlCurrentlyUsed = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
             String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
-            loadMoviesData(mApiKey, mBaseUrl, mApiKeyQueryParam);
+            loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    //TODO initiate mBaseUrlCurrentlyUsed also when coming back from detail activity?
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        //save the mBaseUrlCurrentlyUsed
+        String urlToSave = mBaseUrlCurrentlyUsed;
+        outState.putString(BASE_URL_CURRENTLY_USED, urlToSave);
     }
 
     //method to load Movies Data according to url chosen (popular or top rated)

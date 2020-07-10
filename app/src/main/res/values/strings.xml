@@ -1,10 +1,12 @@
 <resources>
 <!--    todo 1 remove the key-->
-    <string name="app_name">Popular Movies Stage 1</string>
+    <string name="app_name">Pop Movies</string>
     <!--API_KEY deleted for submission-->
-    <string name="API_KEY">xxxxxx</string>
+    <string name="API_KEY">70adfe11222199fd4302064983c3ec83</string>
     <string name="POPULAR_MOVIES_BASE_URL">http://api.themoviedb.org/3/movie/popular</string>
     <string name="TOP_RATED_MOVIE_BASE_URL">http://api.themoviedb.org/3/movie/top_rated</string>
     <string name="APIKEY_QUERY_PARAM">api_key</string>
 
+    <string name="IMAGE_BASE_URL">http://image.tmdb.org/t/p/</string>
+    <string name="DETAIL_POSTER_SIZE">w342</string>
 </resources>

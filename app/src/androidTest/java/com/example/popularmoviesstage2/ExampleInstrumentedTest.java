@@ -1,4 +1,4 @@
-package com.example.popularmoviesstage1;
+package com.example.popularmoviesstage2;
 
 import android.content.Context;
 

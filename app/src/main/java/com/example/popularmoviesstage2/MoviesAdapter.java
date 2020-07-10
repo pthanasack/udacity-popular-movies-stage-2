@@ -1,4 +1,4 @@
-package com.example.popularmoviesstage1;
+package com.example.popularmoviesstage2;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -38,15 +38,10 @@ public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesAdap
     public class MoviesAdapterViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
 
         public final ImageView mMovieImageView;
-        public final TextView mMovieTextViewTitle;
-        public final TextView mMovieTextViewYear;
-
         //ViewHolder Constructor gets the ImageView id
         public MoviesAdapterViewHolder(View view) {
             super(view);
             mMovieImageView = (ImageView) view.findViewById(R.id.iv_movie_poster);
-            mMovieTextViewTitle = (TextView) view.findViewById(R.id.tv_movie_title);
-            mMovieTextViewYear = (TextView) view.findViewById(R.id.tv_movie_year);
             //set the onclick listener
             view.setOnClickListener(this);
         }
