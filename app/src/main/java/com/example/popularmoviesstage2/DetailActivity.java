@@ -1,23 +1,25 @@
 package com.example.popularmoviesstage2;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+
+import com.example.popularmoviesstage2.database.Favorite;
+import com.example.popularmoviesstage2.database.FavoriteDatabase;
+import com.example.popularmoviesstage2.utilities.AppExecutors;
+import com.example.popularmoviesstage2.utilities.NetworkUtilities;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONException;
@@ -26,14 +28,19 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URL;
 
+
 public class DetailActivity extends AppCompatActivity {
 
     final String imageBaseUrl =  "http://image.tmdb.org/t/p/";
     final String moviePosterMainSize = "w342";
+    final String youtubeBaseUrl = "http://youtu.be/";
+
+    final String ADD_TO_FAVORITE="Add to favorites";
+    final String REMOVE_FROM_FAVORITE="Remove from favorites";
 
     private ProgressBar mLoadingIndicator;
     private TextView mReviewsTv;
-    private TextView mTrailersTv;
+    private TextView mTrailersErrorTv;
     private TextView mMovieTitle;
     private TextView mMovieOverview;
     private TextView mMovieReleaseDate;
@@ -50,17 +57,22 @@ public class DetailActivity extends AppCompatActivity {
     private ReviewsAdapter mReviewsAdapter;
 
     private LinearLayout mTrailersLv;
+    private FavoriteDatabase mFavoriteDatabase;
+
+    private boolean mIsMovieAlreadyFavorite;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
         setContentView(R.layout.activity_detail);
         //initiate all textviews and progress bar
         mLoadingIndicator = (ProgressBar) findViewById(R.id.reviews_loading_indicator);
         mMovieTitle = (TextView) findViewById(R.id.tv_original_title);
         mMovieOverview = (TextView) findViewById(R.id.tv_overview);
         mReviewsTv = (TextView) findViewById(R.id.tv_reviews);
-        //mTrailersTv = (TextView) findViewById(R.id.tv_trailers);
+        mTrailersErrorTv = (TextView) findViewById(R.id.tv_trailers_error);
         mMovieReleaseDate = (TextView) findViewById(R.id.tv_release_date);
         mMovieRuntime = (TextView) findViewById(R.id.tv_runtime);
         mMovieVoteAverage = (TextView) findViewById(R.id.tv_vote_average);
@@ -70,17 +82,19 @@ public class DetailActivity extends AppCompatActivity {
         mTrailersTitleTv = (TextView) findViewById(R.id.tv_trailers_title);
         mAddFavoriteBtn = (Button)findViewById(R.id.add_favorite_button);
 
+        //instantiate favorite database
+        mFavoriteDatabase= FavoriteDatabase.getInstance(getApplicationContext());
 
         // get the intent and display related info
         Intent mDetailIntent = getIntent();
         if (mDetailIntent.hasExtra(Intent.EXTRA_TEXT)) {
 
-            String jsonMovieString = mDetailIntent.getStringExtra(Intent.EXTRA_TEXT);
+            final String jsonMovieString = mDetailIntent.getStringExtra(Intent.EXTRA_TEXT);
             try {
 
                 //retrieve movie ID from JSON
                 JSONObject jsonMovieDisplayed = new JSONObject(jsonMovieString);
-                String movieID = jsonMovieDisplayed.getString("id");
+                final String movieID = jsonMovieDisplayed.getString("id");
 
                 //set API parameters
                 String mApiKey = getString(R.string.API_KEY);
@@ -90,7 +104,7 @@ public class DetailActivity extends AppCompatActivity {
                 URL mMovieDetailsUrl = NetworkUtilities.getMovieDetailsURL(mApiKey, movieID, mApiKeyQueryParam);
                 new getMovieDetails().execute(mMovieDetailsUrl);
 
-                //load +display reviews
+                //load reviews
                 URL mMovieReviewsUrl = NetworkUtilities.getMovieReviewsURL(mApiKey, movieID, mApiKeyQueryParam);
                 new getMovieReviews().execute(mMovieReviewsUrl);
 
@@ -98,6 +112,21 @@ public class DetailActivity extends AppCompatActivity {
                 URL mMovieTrailersUrl = NetworkUtilities.getMovieTrailersURL(mApiKey, movieID, mApiKeyQueryParam);
                 new getMovieTrailers().execute(mMovieTrailersUrl);
 
+                this.isMovieAlreadyFavorite(movieID);
+                //check if Movie isAlready a favorite and modify the button label
+                if (mIsMovieAlreadyFavorite)
+                    {
+                        mAddFavoriteBtn.setText(REMOVE_FROM_FAVORITE);
+                    }
+                else {
+                    mAddFavoriteBtn.setText(ADD_TO_FAVORITE);
+                }
+                //add onCLick Listener to Favorite button
+                mAddFavoriteBtn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        onSaveButtonClicked(movieID, jsonMovieString) ;   }
+                });
 
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -120,11 +149,48 @@ public class DetailActivity extends AppCompatActivity {
 
         //same for trailers
         mTrailersLv = (LinearLayout) findViewById(R.id.linearlayout_trailers);
-        //new TrailersAdapter
-        //mytrailersAdapter = new trailersAdapter(DetailActivity.this, R.layout.single_trailer_layout);
-        //mTrailersLv.setAdapter(mytrailersAdapter);
+        //but data for trailers is set OnPostExecute because no need for a RecyclerView for the trailers
+
 
     }
+
+    //method to know if the movie is already a favorite
+    public void isMovieAlreadyFavorite(String inMovieidParam){
+        final String inMovieid = inMovieidParam;
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+            @Override
+            public void run() {
+                if (mFavoriteDatabase.favoriteDao().getFavoriteByMovieid(inMovieid) == null) {
+                    mIsMovieAlreadyFavorite = false;
+                } else
+                {
+                    mIsMovieAlreadyFavorite = true;
+                }
+            }
+        });
+    }
+
+
+
+      //method to save/unsave a favorite
+    public void onSaveButtonClicked(String inMovieidParam, String inMovieJsonParam) {
+        final Favorite inFavorite = new Favorite(inMovieidParam, inMovieJsonParam);
+        final String inMovieid = inMovieidParam;
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+            @Override
+            public void run() {
+                if (mFavoriteDatabase.favoriteDao().getFavoriteByMovieid(inMovieid) == null) {
+                    mFavoriteDatabase.favoriteDao().insertFavorite(inFavorite);
+            } else
+                {
+                    mFavoriteDatabase.favoriteDao().deleteFavorite(inFavorite);
+                }
+                finish();
+            }
+        });
+
+    }
+
 
     public class getMovieDetails extends AsyncTask<URL, Void, String> {
         //Override OnPreExecute to show loading indicator
@@ -331,13 +397,29 @@ public class DetailActivity extends AppCompatActivity {
                         String trailerType = trailerData.getString("type");
                         //create a new play button for the trailer
                         Button playBtn = new Button(DetailActivity.this);
-                        playBtn.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT));
-                        playBtn.setText("PLAY " + trailerKey);
+                        playBtn.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
                         //create a new label textview for the trailer
                         TextView trailerNameTv = new TextView(DetailActivity.this);
-                        trailerNameTv.setText(trailerType + ": " +trailerName);
+                        //build the URI for the Intent
+                        Uri.Builder youtubeUriBuilder = Uri.parse(youtubeBaseUrl).buildUpon()
+                                .appendPath(trailerKey);
+                        Uri youtubeUri = youtubeUriBuilder.build();
+                        final Intent youtubeIntent = new Intent(Intent.ACTION_VIEW, youtubeUri);
+                        //apply the intent to a OnClickListener applied to the button
+                        playBtn.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                if (youtubeIntent.resolveActivity(getPackageManager()) != null){
+                                    startActivity(youtubeIntent);
+                                }
+                            }
+                        });
+                        //set the text for the button and the label
+                        playBtn.setText("PLAY ");
+                        trailerNameTv.setText(trailerType + ": " + trailerName);
+                        //add the button and label to the row
                         row.addView(playBtn);
-                        //row.addView(trailerNameTv);
+                        row.addView(trailerNameTv , LinearLayout.LayoutParams.MATCH_PARENT);
                         //add the full row to the Trailer LinearLayout
                         mTrailersLv.addView(row);
                     } catch (JSONException e) {
@@ -348,11 +430,17 @@ public class DetailActivity extends AppCompatActivity {
             }
 
             else {
-                mTrailersTv.setText("Error Catching Movie Data");
+                mTrailersErrorTv.setText("Error Catching Movie Data");
+                mTrailersErrorTv.setVisibility(View.VISIBLE);
                 // showErrorMessage();
             }
 
         }
+
+
+
+
     }
+
 
 }

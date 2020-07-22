@@ -2,10 +2,10 @@ package com.example.popularmoviesstage2;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Rect;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -13,14 +13,26 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.popularmoviesstage2.database.Favorite;
+import com.example.popularmoviesstage2.database.FavoriteDatabase;
+import com.example.popularmoviesstage2.utilities.AppExecutors;
+import com.example.popularmoviesstage2.utilities.NetworkUtilities;
+
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements MoviesAdapter.MoviesAdapterOnClickHandler {
+    // Constant for logging
+    private static final String TAG = MainActivity.class.getSimpleName();
+
     private TextView tvMoviesData;
 
     private RecyclerView mRecyclerView;
@@ -29,6 +41,9 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
 
     private String mBaseUrlCurrentlyUsed;
     private String BASE_URL_CURRENTLY_USED = "BASE_URL_CURRENTLY_USED";
+
+    private FavoriteDatabase mFavoriteDatabase;
+
 
     //function to adjust number of columns for gridlayoutmanager
     private int numberOfColumns() {
@@ -64,11 +79,13 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
         //set the adapter to the RecyclerView
         mRecyclerView.setAdapter(mMoviesAdapter);
 
-        //load the data according to wether there is a sort type already used
+        //instantiate favorite database
+        mFavoriteDatabase = FavoriteDatabase.getInstance(getApplicationContext());
+
+        //load the data according to whether there is a sort type already used
         String mApiKey = getString(R.string.API_KEY);
         String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
-        if(savedInstanceState!=null)
-        {
+        if (savedInstanceState != null) {
             mBaseUrlCurrentlyUsed = savedInstanceState.getString(BASE_URL_CURRENTLY_USED);
         }
 
@@ -77,9 +94,11 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
             //String mBaseUrl = getString(R.string.POPULAR_MOVIES_BASE_URL);
             String mBaseUrlCurrentlyUsed = getString(R.string.POPULAR_MOVIES_BASE_URL);
             loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
-        } else{
+        } else {
             loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
         }
+
+
     }
 
 
@@ -138,14 +157,43 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
         if (id == R.id.sort_top_rated) {
             //get the Movies Data - sorted by top rated
             String mApiKey = getString(R.string.API_KEY);
-           // String mBaseUrl = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
+            // String mBaseUrl = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
             mBaseUrlCurrentlyUsed = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
             String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
             loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
             return true;
         }
+        if (id == R.id.sort_favorites) {
+            //get the Movies Data - all favorites in DB
+            loadMoviesFavorites();
+            showMovieData();
+            return true;
+        }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    //load the favorites as a String[] containing all favorites JSon
+    public void loadMoviesFavorites() {
+        //use LiveData instead of an executor
+        final LiveData<List<Favorite>> allFavoritesList = mFavoriteDatabase.favoriteDao().loadAllFavorites();
+        //observe Favorites change
+        allFavoritesList.observe(this, new Observer<List<Favorite>>() {
+            @Override
+            public void onChanged(@Nullable List<Favorite> allFavoritesList) {
+                //initialize String[] and log
+                final String[] mArrayMovieData = new String[allFavoritesList.size()];
+                Log.d(TAG, "Receiving database update from LiveData");
+                //build a String[] from UI thread containing all favorites JSON
+                for (int i = 0; i < allFavoritesList.size(); i++) {
+                    mArrayMovieData[i] = allFavoritesList.get(i).getMovieJson();
+                }
+                //pass the String[] to the MoviesAdapter to display into RecyclerView
+                mMoviesAdapter.setMovieData(mArrayMovieData);
+            }
+        });
+
+
     }
 
     //TODO initiate mBaseUrlCurrentlyUsed also when coming back from detail activity?

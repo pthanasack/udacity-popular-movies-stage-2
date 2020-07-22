@@ -75,7 +75,10 @@
             android:layout_marginStart="32dp"
             android:layout_marginLeft="32dp"
             android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp"
             android:text="MARK AS FAVORITE"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/iv_detail_poster"
             app:layout_constraintTop_toBottomOf="@+id/tv_vote_average" />
 
@@ -121,10 +124,15 @@
             android:id="@+id/linearlayout_trailers"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:layout_constraintStart_toStartOf="@id/tv_trailers_title"
-            app:layout_constraintTop_toBottomOf="@id/tv_trailers_title"
+            android:layout_marginStart="8dp"
+            android:layout_marginLeft="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp"
             android:orientation="vertical"
-            android:visibility="invisible">
+            android:visibility="invisible"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/tv_trailers_title"
+            app:layout_constraintTop_toBottomOf="@id/tv_trailers_title">
 
 
         </LinearLayout>
@@ -177,11 +185,25 @@
             android:id="@+id/recycler_view_reviews"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:visibility="invisible"
-            app:layout_constraintStart_toStartOf="@id/tv_Reviews_title"
             android:layout_marginTop="16dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp"
+            android:visibility="invisible"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/tv_Reviews_title"
             app:layout_constraintTop_toBottomOf="@id/tv_Reviews_title" />
 
+        <TextView
+            android:id="@+id/tv_trailers_error"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginLeft="8dp"
+            android:visibility="invisible"
+            app:layout_constraintBottom_toTopOf="@+id/tv_trailers_title"
+            app:layout_constraintStart_toEndOf="@+id/tv_trailers_title"
+            app:layout_constraintTop_toBottomOf="@+id/tv_trailers_title"
+            tools:text="Trailers Error Msg" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

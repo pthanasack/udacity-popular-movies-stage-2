@@ -1,4 +1,4 @@
-package com.example.popularmoviesstage2;
+package com.example.popularmoviesstage2.utilities;
 
 import android.net.Uri;
 
@@ -54,7 +54,7 @@ public class NetworkUtilities {
         }
         return uMoviesDataUrl;
     }
-    //Build the URL to get the trailes for a given movieid
+    //Build the URL to get the trailers for a given movieid
     public static URL getMovieTrailersURL(String apiKey, String movieID, String apiKeyQueryParam) {
         String movieReviewsById = "http://api.themoviedb.org/3/movie/" + movieID + "/videos";
         Uri.Builder builtUri = Uri.parse(movieReviewsById).buildUpon()
