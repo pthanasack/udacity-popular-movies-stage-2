@@ -1,12 +1,17 @@
 <resources>
-<!--    todo 1 remove the key-->
+    <!--    todo 1 remove the key-->
     <string name="app_name">Pop Movies</string>
     <!--API_KEY deleted for submission-->
-    <string name="API_KEY">70adfe11222199fd4302064983c3ec83</string>
+    <string name="API_KEY">*****</string>
+    <!--MainActivity Strings constants-->
     <string name="POPULAR_MOVIES_BASE_URL">http://api.themoviedb.org/3/movie/popular</string>
     <string name="TOP_RATED_MOVIE_BASE_URL">http://api.themoviedb.org/3/movie/top_rated</string>
     <string name="APIKEY_QUERY_PARAM">api_key</string>
+    <string name="BASE_URL_CURRENTLY_USED">BASE_URL_CURRENTLY_USED</string>
 
+    <!--DetailActivity Strings constants-->
     <string name="IMAGE_BASE_URL">http://image.tmdb.org/t/p/</string>
     <string name="DETAIL_POSTER_SIZE">w342</string>
+    <string name="PLAY_BUTTON_LABEL">\"PLAY \"</string>
+
 </resources>

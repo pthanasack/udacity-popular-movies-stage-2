@@ -11,12 +11,14 @@ import java.util.Date;
 public class Favorite {
 
     @PrimaryKey
-    @NonNull private String movieid;
+    @NonNull
+    private String movieid;
+    private String movieTitle;
     private String movieJson;
 
 
-    public Favorite(String movieid, String movieJson){
-
+    public Favorite(String movieid, String movieTitle, String movieJson) {
+        this.movieTitle = movieTitle;
         this.movieid = movieid;
         this.movieJson = movieJson;
     }
@@ -27,6 +29,14 @@ public class Favorite {
 
     public void setMovieid(String movieid) {
         this.movieid = movieid;
+    }
+
+    public String getMovieTitle() {
+        return movieTitle;
+    }
+
+    public void setMovieTitle(String movieTitle) {
+        this.movieTitle = movieTitle;
     }
 
     public String getMovieJson() {

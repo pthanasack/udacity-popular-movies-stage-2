@@ -8,7 +8,7 @@ import androidx.room.Entity;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-@Database( entities = {Favorite.class}, version = 1, exportSchema = false)
+@Database(entities = {Favorite.class}, version = 1, exportSchema = false)
 public abstract class FavoriteDatabase extends RoomDatabase {
 
     private static final String LOG_TAG = FavoriteDatabase.class.getSimpleName();

@@ -12,6 +12,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -31,12 +33,12 @@ import java.net.URL;
 
 public class DetailActivity extends AppCompatActivity {
 
-    final String imageBaseUrl =  "http://image.tmdb.org/t/p/";
+    final String imageBaseUrl = "http://image.tmdb.org/t/p/";
     final String moviePosterMainSize = "w342";
     final String youtubeBaseUrl = "http://youtu.be/";
 
-    final String ADD_TO_FAVORITE="Add to favorites";
-    final String REMOVE_FROM_FAVORITE="Remove from favorites";
+    final String ADD_TO_FAVORITE = "FAVORITE";
+    final String REMOVE_FROM_FAVORITE = "UNFAVORITE";
 
     private ProgressBar mLoadingIndicator;
     private TextView mReviewsTv;
@@ -59,7 +61,6 @@ public class DetailActivity extends AppCompatActivity {
     private LinearLayout mTrailersLv;
     private FavoriteDatabase mFavoriteDatabase;
 
-    private boolean mIsMovieAlreadyFavorite;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,14 +77,14 @@ public class DetailActivity extends AppCompatActivity {
         mMovieReleaseDate = (TextView) findViewById(R.id.tv_release_date);
         mMovieRuntime = (TextView) findViewById(R.id.tv_runtime);
         mMovieVoteAverage = (TextView) findViewById(R.id.tv_vote_average);
-        mOverviewDividerIv =(ImageView) findViewById(R.id.overview_divider);
+        mOverviewDividerIv = (ImageView) findViewById(R.id.overview_divider);
         mReviewsTitleTv = (TextView) findViewById(R.id.tv_Reviews_title);
         mTrailersDividerIv = (ImageView) findViewById(R.id.trailers_divider);
         mTrailersTitleTv = (TextView) findViewById(R.id.tv_trailers_title);
-        mAddFavoriteBtn = (Button)findViewById(R.id.add_favorite_button);
+        mAddFavoriteBtn = (Button) findViewById(R.id.add_favorite_button);
 
         //instantiate favorite database
-        mFavoriteDatabase= FavoriteDatabase.getInstance(getApplicationContext());
+        mFavoriteDatabase = FavoriteDatabase.getInstance(getApplicationContext());
 
         // get the intent and display related info
         Intent mDetailIntent = getIntent();
@@ -95,7 +96,7 @@ public class DetailActivity extends AppCompatActivity {
                 //retrieve movie ID from JSON
                 JSONObject jsonMovieDisplayed = new JSONObject(jsonMovieString);
                 final String movieID = jsonMovieDisplayed.getString("id");
-
+                final String movieTitle = jsonMovieDisplayed.getString("title");
                 //set API parameters
                 String mApiKey = getString(R.string.API_KEY);
                 String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
@@ -112,20 +113,25 @@ public class DetailActivity extends AppCompatActivity {
                 URL mMovieTrailersUrl = NetworkUtilities.getMovieTrailersURL(mApiKey, movieID, mApiKeyQueryParam);
                 new getMovieTrailers().execute(mMovieTrailersUrl);
 
-                this.isMovieAlreadyFavorite(movieID);
-                //check if Movie isAlready a favorite and modify the button label
-                if (mIsMovieAlreadyFavorite)
-                    {
-                        mAddFavoriteBtn.setText(REMOVE_FROM_FAVORITE);
+                //check if Movie isAlready a favorite and modify the button label accordingly
+                AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (mFavoriteDatabase.favoriteDao().getFavoriteByMovieid(movieID) == null) {
+                            mAddFavoriteBtn.setText(ADD_TO_FAVORITE);
+                        } else {
+                            mAddFavoriteBtn.setText(REMOVE_FROM_FAVORITE);
+                        }
                     }
-                else {
-                    mAddFavoriteBtn.setText(ADD_TO_FAVORITE);
-                }
+                });
+
+
                 //add onCLick Listener to Favorite button
                 mAddFavoriteBtn.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        onSaveButtonClicked(movieID, jsonMovieString) ;   }
+                        onSaveButtonClicked(movieID, movieTitle, jsonMovieString);
+                    }
                 });
 
             } catch (JSONException e) {
@@ -150,39 +156,19 @@ public class DetailActivity extends AppCompatActivity {
         //same for trailers
         mTrailersLv = (LinearLayout) findViewById(R.id.linearlayout_trailers);
         //but data for trailers is set OnPostExecute because no need for a RecyclerView for the trailers
-
-
-    }
-
-    //method to know if the movie is already a favorite
-    public void isMovieAlreadyFavorite(String inMovieidParam){
-        final String inMovieid = inMovieidParam;
-        AppExecutors.getInstance().diskIO().execute(new Runnable() {
-            @Override
-            public void run() {
-                if (mFavoriteDatabase.favoriteDao().getFavoriteByMovieid(inMovieid) == null) {
-                    mIsMovieAlreadyFavorite = false;
-                } else
-                {
-                    mIsMovieAlreadyFavorite = true;
-                }
-            }
-        });
     }
 
 
-
-      //method to save/unsave a favorite
-    public void onSaveButtonClicked(String inMovieidParam, String inMovieJsonParam) {
-        final Favorite inFavorite = new Favorite(inMovieidParam, inMovieJsonParam);
+    //method to save/unsave a favorite
+    public void onSaveButtonClicked(String inMovieidParam, String inMovieTitle, String inMovieJsonParam) {
+        final Favorite inFavorite = new Favorite(inMovieidParam, inMovieTitle, inMovieJsonParam);
         final String inMovieid = inMovieidParam;
         AppExecutors.getInstance().diskIO().execute(new Runnable() {
             @Override
             public void run() {
                 if (mFavoriteDatabase.favoriteDao().getFavoriteByMovieid(inMovieid) == null) {
                     mFavoriteDatabase.favoriteDao().insertFavorite(inFavorite);
-            } else
-                {
+                } else {
                     mFavoriteDatabase.favoriteDao().deleteFavorite(inFavorite);
                 }
                 finish();
@@ -277,7 +263,7 @@ public class DetailActivity extends AppCompatActivity {
 
                     //display movie release date
                     detailMovieDisplayedString = jsonMovieDisplayed.getString("release_date");
-                    mMovieReleaseDate.setText(detailMovieDisplayedString.substring(0,4));
+                    mMovieReleaseDate.setText(detailMovieDisplayedString.substring(0, 4));
 
                     //display movie vote_average
                     detailMovieDisplayedString = jsonMovieDisplayed.getString("vote_average");
@@ -288,8 +274,7 @@ public class DetailActivity extends AppCompatActivity {
                     mMovieRuntime.setText(detailMovieDisplayedString + " min");
                     // showMovieData();
 
-                }
-                catch (JSONException e) {
+                } catch (JSONException e) {
                     e.printStackTrace();
                 }
             } else {
@@ -386,7 +371,7 @@ public class DetailActivity extends AppCompatActivity {
                 //convert the data in array format from JSON STring
                 String[] mtrailersArray = NetworkUtilities.getArrayFromMovieJSON(mMoviesDataString);
                 //for each trailer, create a row
-               for (int i=0;i<mtrailersArray.length;i++){
+                for (int i = 0; i < mtrailersArray.length; i++) {
                     LinearLayout row = new LinearLayout(DetailActivity.this);
                     row.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
                     try {
@@ -409,17 +394,17 @@ public class DetailActivity extends AppCompatActivity {
                         playBtn.setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
-                                if (youtubeIntent.resolveActivity(getPackageManager()) != null){
+                                if (youtubeIntent.resolveActivity(getPackageManager()) != null) {
                                     startActivity(youtubeIntent);
                                 }
                             }
                         });
                         //set the text for the button and the label
-                        playBtn.setText("PLAY ");
+                        playBtn.setText(R.string.PLAY_BUTTON_LABEL);
                         trailerNameTv.setText(trailerType + ": " + trailerName);
                         //add the button and label to the row
                         row.addView(playBtn);
-                        row.addView(trailerNameTv , LinearLayout.LayoutParams.MATCH_PARENT);
+                        row.addView(trailerNameTv, LinearLayout.LayoutParams.MATCH_PARENT);
                         //add the full row to the Trailer LinearLayout
                         mTrailersLv.addView(row);
                     } catch (JSONException e) {
@@ -427,17 +412,13 @@ public class DetailActivity extends AppCompatActivity {
                     }
                 }
                 mTrailersLv.setVisibility(View.VISIBLE);
-            }
-
-            else {
+            } else {
                 mTrailersErrorTv.setText("Error Catching Movie Data");
                 mTrailersErrorTv.setVisibility(View.VISIBLE);
                 // showErrorMessage();
             }
 
         }
-
-
 
 
     }

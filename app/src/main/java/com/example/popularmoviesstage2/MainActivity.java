@@ -15,14 +15,13 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.popularmoviesstage2.database.Favorite;
 import com.example.popularmoviesstage2.database.FavoriteDatabase;
-import com.example.popularmoviesstage2.utilities.AppExecutors;
 import com.example.popularmoviesstage2.utilities.NetworkUtilities;
 
 import java.io.IOException;
@@ -42,7 +41,7 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
     private String mBaseUrlCurrentlyUsed;
     private String BASE_URL_CURRENTLY_USED = "BASE_URL_CURRENTLY_USED";
 
-    private FavoriteDatabase mFavoriteDatabase;
+    // private FavoriteDatabase mFavoriteDatabase;
 
 
     //function to adjust number of columns for gridlayoutmanager
@@ -79,9 +78,6 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
         //set the adapter to the RecyclerView
         mRecyclerView.setAdapter(mMoviesAdapter);
 
-        //instantiate favorite database
-        mFavoriteDatabase = FavoriteDatabase.getInstance(getApplicationContext());
-
         //load the data according to whether there is a sort type already used
         String mApiKey = getString(R.string.API_KEY);
         String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
@@ -91,7 +87,6 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
 
         if (mBaseUrlCurrentlyUsed == null) {
             //get the Movies Data - by default, sorted by popular
-            //String mBaseUrl = getString(R.string.POPULAR_MOVIES_BASE_URL);
             String mBaseUrlCurrentlyUsed = getString(R.string.POPULAR_MOVIES_BASE_URL);
             loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
         } else {
@@ -148,7 +143,6 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
         if (id == R.id.sort_popular) {
             //get the Movies Data - sorted by popular
             String mApiKey = getString(R.string.API_KEY);
-            //String mBaseUrl = getString(R.string.POPULAR_MOVIES_BASE_URL);
             mBaseUrlCurrentlyUsed = getString(R.string.POPULAR_MOVIES_BASE_URL);
             String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
             loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
@@ -157,7 +151,6 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
         if (id == R.id.sort_top_rated) {
             //get the Movies Data - sorted by top rated
             String mApiKey = getString(R.string.API_KEY);
-            // String mBaseUrl = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
             mBaseUrlCurrentlyUsed = getString(R.string.TOP_RATED_MOVIE_BASE_URL);
             String mApiKeyQueryParam = getString(R.string.APIKEY_QUERY_PARAM);
             loadMoviesData(mApiKey, mBaseUrlCurrentlyUsed, mApiKeyQueryParam);
@@ -175,12 +168,12 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
 
     //load the favorites as a String[] containing all favorites JSon
     public void loadMoviesFavorites() {
-        //use LiveData instead of an executor
-        final LiveData<List<Favorite>> allFavoritesList = mFavoriteDatabase.favoriteDao().loadAllFavorites();
-        //observe Favorites change
-        allFavoritesList.observe(this, new Observer<List<Favorite>>() {
+        //use ViewModel instead od direct LiveData or executor
+        MainViewModel viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+        viewModel.getAllFavoritesList().observe(this, new Observer<List<Favorite>>() {
             @Override
             public void onChanged(@Nullable List<Favorite> allFavoritesList) {
+                Log.d(TAG, "Updating list of favorites from LiveData in ViewModel");
                 //initialize String[] and log
                 final String[] mArrayMovieData = new String[allFavoritesList.size()];
                 Log.d(TAG, "Receiving database update from LiveData");
@@ -192,11 +185,9 @@ public class MainActivity extends AppCompatActivity implements MoviesAdapter.Mov
                 mMoviesAdapter.setMovieData(mArrayMovieData);
             }
         });
-
-
     }
 
-    //TODO initiate mBaseUrlCurrentlyUsed also when coming back from detail activity?
+    //Tuse OnsaveInstanceState to pass URL and display the correct movies  (popular or top rated)
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
